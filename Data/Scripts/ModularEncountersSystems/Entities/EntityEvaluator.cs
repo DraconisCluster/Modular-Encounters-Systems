@@ -1,4 +1,6 @@
-﻿using ModularEncountersSystems.API;
+﻿
+using ModularEncountersSystems.API;
+using ModularEncountersSystems.Configuration;
 using ModularEncountersSystems.Helpers;
 using ModularEncountersSystems.Logging;
 using Sandbox.Definitions;
@@ -395,7 +397,7 @@ namespace ModularEncountersSystems.Entities {
 			//Try Player
 			var character = entity as IMyCharacter;
 			var block = entity as IMyCubeBlock;
-
+			
 			if (character != null) {
 
 				return GetTargetFromPlayerEntity(character);
@@ -678,59 +680,82 @@ namespace ModularEncountersSystems.Entities {
 		public static float GridTargetValue(GridEntity grid) {
 
 			var timespan = MyAPIGateway.Session.GameDateTime - grid.LastThreatCalculationTime;
+            ConfigThreat currentThreatSettings = Settings.Threat;
+           
+            float result = 0;
 
-			if (timespan.TotalMilliseconds < 5000)
-				return grid.ThreatScore;
+            if (timespan.TotalMilliseconds < 5000)
+                return grid.ThreatScore;
 
-			float result = 0;
-
-			if (grid.IsClosed() || grid.AllBlocks.Count <= 1)
+            if (grid.IsClosed() || grid.AllBlocks.Count <= 1)
+			{
 				return result;
+			}
 
-			result += GetTargetValueFromBlockList(grid.Antennas, 4, 2);
-			result += GetTargetValueFromBlockList(grid.Beacons, 3, 2);
-			result += GetTargetValueFromBlockList(grid.Containers, 0.5f, 2, true);
-			result += GetTargetValueFromBlockList(grid.Controllers, 0.5f, 2);
-			result += GetTargetValueFromBlockList(grid.Gravity, 2, 4, true);
-			result += GetTargetValueFromBlockList(grid.Guns, 5, 4, true);
-			result += GetTargetValueFromBlockList(grid.JumpDrives, 10, 2);
-			result += GetTargetValueFromBlockList(grid.Mechanical, 1, 2);
-			result += GetTargetValueFromBlockList(grid.Medical, 10, 2);
-			result += GetTargetValueFromBlockList(grid.NanoBots, 15, 2);
-			result += GetTargetValueFromBlockList(grid.Production, 2, 2, true);
-			result += GetTargetValueFromBlockList(grid.Power, 0.5f, 2, true);
-			result += GetTargetValueFromBlockList(grid.Shields, 15, 2);
-			result += GetTargetValueFromBlockList(grid.Thrusters, 1, 2);
-			result += GetTargetValueFromBlockList(grid.Tools, 2, 2, true);
-			result += GetTargetValueFromBlockList(grid.Turrets, 7.5f, 4, true);
+            result += GetTargetValueFromBlockList(grid.Antennas, "Antennas");
+            result += GetTargetValueFromBlockList(grid.Beacons, "Beacons");
+            result += GetTargetValueFromBlockList(grid.Containers, "Containers", true);
+            result += GetTargetValueFromBlockList(grid.Controllers, "Controllers");
+            result += GetTargetValueFromBlockList(grid.Gravity, "Gravity", true);
+            result += GetTargetValueFromBlockList(grid.Guns, "Guns", true);
+            result += GetTargetValueFromBlockList(grid.JumpDrives, "JumpDrives");
+            result += GetTargetValueFromBlockList(grid.Mechanical, "Mechanical");
+            result += GetTargetValueFromBlockList(grid.Medical, "Medical");
+            result += GetTargetValueFromBlockList(grid.NanoBots, "NanoBots");
+            result += GetTargetValueFromBlockList(grid.Production, "Production", true);
+            result += GetTargetValueFromBlockList(grid.Power, "Power", true);
+            result += GetTargetValueFromBlockList(grid.Shields, "Shields");
+            result += GetTargetValueFromBlockList(grid.Thrusters, "Thrusters");
+            result += GetTargetValueFromBlockList(grid.Tools, "Tools", true);
+            result += GetTargetValueFromBlockList(grid.Turrets, "Turrets", true);
 
-			//Factor Power
-			result += (grid.PowerOutput().Y > 0) ? (grid.PowerOutput().Y / 10) : 0;
 
-			//Factor Total Block Count
-			result += grid.AllBlocks.Count / 100;
+			// Add threat based on the number of blocks.
+            result += ((float)(grid.AllBlocks.Count 
+				* (currentThreatSettings.UseThreatPerBlockMultiplier ? currentThreatSettings.ThreatPerBlockMultiplier : 0.0F)));
 
-			//Factor Grid Box Size
-			result += (float)Vector3D.Distance(grid.CubeGrid.WorldAABB.Min, grid.CubeGrid.WorldAABB.Max) / 4;
 
-			//Factor Static/Dynamic
-			if (grid.CubeGrid.IsStatic)
-				result *= 0.75f;
+			// Add threat based on the size of the bounding box of the grid. (Original)
+            result += ((float)(Vector3D.Distance(grid.CubeGrid.WorldAABB.Min, grid.CubeGrid.WorldAABB.Max)
+				* (currentThreatSettings.UseGridBoundingBoxThreatMultiplier ? currentThreatSettings.BoundingBoxSizeMultiplier : 0.0F)));
 
-			//Factor Cube Size
-			if (grid.CubeGrid.GridSizeEnum == MyCubeSize.Large)
-				result *= 2.5f;
-			else
-				result *= 0.5f;
 
-			grid.ThreatScore = result * 0.70f;
-			grid.LastThreatCalculationTime = MyAPIGateway.Session.GameDateTime;
+			// Multiply threat based on the type of grid we are evaluating
+            if (currentThreatSettings.UseSizeMultipliers)
+            {
+                if (grid.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                    result *= (float)currentThreatSettings.SizeMultipliers.LargeGridMultiplier;
+                else
+                    result *= (float)currentThreatSettings.SizeMultipliers.SmallGridMultiplier;
 
-			return grid.ThreatScore;
-		
-		}
+                if (grid.CubeGrid.IsStatic)
+                    result *= (float)currentThreatSettings.SizeMultipliers.StationMultiplier;
+            }
+			
+			// Add threat based on the amount of power being produced, modified by the type of grid producing power.
+            if (currentThreatSettings.UsePowerMultipliers && grid.PowerOutput().Y > 0)
+            {
+                if (grid.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                    result += (grid.PowerOutput().Y * (float)currentThreatSettings.PowerMultipliers.LargeGridMultiplier);
+                else
+                    result += (grid.PowerOutput().Y * (float)currentThreatSettings.PowerMultipliers.SmallGridMultiplier);
 
-		public static int GridPcuValue(List<GridEntity> gridList) {
+                if (grid.CubeGrid.IsStatic)
+                    result += (grid.PowerOutput().Y * (float)currentThreatSettings.PowerMultipliers.StationMultiplier);
+
+            }
+
+            grid.ThreatScore = result;
+
+            grid.LastThreatCalculationTime = MyAPIGateway.Session.GameDateTime;         
+
+
+            return grid.ThreatScore;
+
+
+        }
+
+        public static int GridPcuValue(List<GridEntity> gridList) {
 
 			int result = 0;
 
@@ -774,39 +799,132 @@ namespace ModularEncountersSystems.Entities {
 
 		}
 
-		public static float GetTargetValueFromBlockList(List<BlockEntity> blockList, float threatValue, float modMultiplier = 2, bool scanInventory = false) {
+        public static float GetTargetValueFromBlockList(List<BlockEntity> blockList, string categoryName, bool scanInventory = false)
+        {
 
-			float result = 0;
+			float totalThreatResult = 0F;
 
-			foreach (var block in blockList) {
+			// Current Threat Config
+            ConfigThreat currentThreatSettings = Settings.Threat;
 
-				if (block.IsClosed() || !block.Functional)
-					continue;
+            // Used to track specific blocks within the block's 'category' assigned by MES            
+            Dictionary<string, List<float>> blockSpecificThreats = new Dictionary<string, List<float>>();
 
-				var value = threatValue * (block.Modded ? modMultiplier : 1);
+            // Tally for the threat limited to non-specific 'category' based blocks
+            List<float> categoryThreats = new List<float>();
 
-				if (scanInventory) {
+            ThreatDefinition categoryThreatDef = null;
 
-					if (block.Block.HasInventory && block.Block.GetInventory().MaxVolume > 0) {
+			// Try to get a value for the category from the current threat definitions
+            currentThreatSettings.CategoryThreatDefinitions.TryGetValue(categoryName, out categoryThreatDef);
 
-						var inventoryModifier = ((float)block.Block.GetInventory().CurrentVolume / (float)block.Block.GetInventory().MaxVolume) + 1;
 
-						if (inventoryModifier != float.NaN)
-							value *= inventoryModifier;
+            foreach (var block in blockList)
+            {
 
+				// We don't count non-functional blocks here. They DO contribute to threat insofar as overall block count.
+                if (block.IsClosed() || !block.Functional)
+                    continue;
+
+				// First, try and get the block's subtype ID. If it doesn't have one, then use the blocks main type ID.
+                string blockType = String.IsNullOrEmpty(block.Block.BlockDefinition.SubtypeId)
+             ? block.Block.BlockDefinition.TypeIdString
+             : block.Block.BlockDefinition.SubtypeId;
+
+                ThreatDefinition threatDef = null;
+
+                // Before we consider category threat, let's try and get a more granular definition if it exists. Also, use it to set a flag for later.
+                bool isBlockSpecific = currentThreatSettings.BlockThreatDefinitions.TryGetValue(blockType, out threatDef);
+
+                if (!isBlockSpecific)        
+                    threatDef = categoryThreatDef;
+                
+                // we didn't find ANY threat. Don't continue calculation.
+                if (threatDef == null)
+                    continue;
+
+
+                float value = (float)threatDef.Threat;
+                if (scanInventory 
+					&& block.Block.HasInventory 
+					&& block.Block.GetInventory().MaxVolume > 0)
+                {
+					// This value will range from 0ish-1.0, representing how filled the container is in percentage.
+					// 0.54 = 54% full. 
+
+                    float invMod = ((float)block.Block.GetInventory().CurrentVolume / (float)block.Block.GetInventory().MaxVolume) + 1;
+                    if (!float.IsNaN(invMod))
+                    {
+						// We add an amount of threat based on how full the container is times the potential volume modifier
+                        value += (float)(invMod * threatDef.PotentialVolume);
+                    }
+                }
+
+				// Finally. If the threat is calculated based on a specific block type, then it goes into the dictionary.
+				// If not, then we are safe to add it to the category score
+                
+				if (isBlockSpecific)
+                {
+
+					if (!blockSpecificThreats.ContainsKey(blockType)){
+						// Initialize a new list if it doesn't exist
+						blockSpecificThreats[blockType] = new List<float>();
 					}
+                    // And add the value for tallying later.
+                    blockSpecificThreats[blockType].Add(value);
+                }
+                else
+                {
+					// Add the category threat to the list of threat values.
+					categoryThreats.Add(value);
+                }
+            }
 
-				}
+			// Now, we tally things up and apply penalties.
 
-				result += value;
+            // Apply a progressive penalty for category-level blocks
+            if (categoryThreatDef != null 
+				&& categoryThreats.Count > 0)
+            {
+				// Our penalty multiplier.
+                float multiplier = (float)categoryThreatDef.Multiplier;
 
-			}
+                // The running tally. Start with first element as the base value so we apply the penalty appropriately.
+                float compoundedThreat = categoryThreats[0];
+                for (int i = 1; i < categoryThreats.Count; i++)
+                {
+                    compoundedThreat = (compoundedThreat + categoryThreats[i]) * multiplier;
+                }
 
-			return result;
+                totalThreatResult += compoundedThreat;
+            }
 
-		}
+            // Apply progressive penalty to each specific block type
+            foreach (var kvp in blockSpecificThreats)
+            {
+                string blockType = kvp.Key;
+                List<float> threats = kvp.Value;
 
-		public static int GridMovementScore(List<GridEntity> grids) {
+				// We need to retrieve this again because we need the multiplier. Perhaps something to improve on.
+				ThreatDefinition threatD;
+                if (!currentThreatSettings.BlockThreatDefinitions.TryGetValue(blockType, out threatD))
+                    continue;
+
+                float multiplier = (float)threatD.Multiplier;
+                
+                float compoundedThreat = threats[0];
+                for (int i = 1; i < threats.Count; i++)
+                {
+                    compoundedThreat = (compoundedThreat + threats[i]) * multiplier;
+                }
+                totalThreatResult += compoundedThreat;
+            }
+
+			// And we are done. Threatening, yes?
+            return totalThreatResult;
+        }
+
+        public static int GridMovementScore(List<GridEntity> grids) {
 
 			int result = 0;
 

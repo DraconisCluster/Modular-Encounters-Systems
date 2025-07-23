@@ -1,0 +1,63 @@
+name: upload workshop
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload-workshop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup
+        run: |
+          echo steam steam/question select "I AGREE" | sudo debconf-set-selections
+          echo steam steam/license note '' | sudo debconf-set-selections
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends ca-certificates locales steamcmd
+          sudo locale-gen en_US.UTF-8
+          sudo ln -s /usr/games/steamcmd /usr/bin/steamcmd
+          mkdir -p "$HOME/.steam"
+          steamcmd +quit
+          rm -rf "$HOME/Steam/logs"
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          LANG: en_US.UTF-8
+
+      - name: upload
+        run: |
+          mkdir -p "$HOME/Steam/config"
+          echo "$STEAM_CONFIG_VDF" > "$HOME/Steam/config/config.vdf"
+
+          rm -rf '.github'
+          {
+            echo '"workshopitem" {'
+            echo '"appid" "244850"'
+            echo '"publishedfileid" "2719171365"'
+            echo "\"contentfolder\" \"$PWD\""
+            echo "\"previewfile\" \"$PWD/thumb.jpg\""
+            echo '"visibility" "3"'
+            echo '"title" "DO NOT USE - MES [TEST]"'
+            echo '"description" "This is a private fork of MES to test a change that will be proposed in a pull request.'
+            echo ''
+            echo 'Find the original MES mod at: https://steamcommunity.com/sharedfiles/filedetails/?id=1521905890'
+            echo 'Or on github: https://github.com/MeridiusIX/Modular-Encounters-Systems'
+            echo 'This mod is available as the following fork: https://github.com/DraconisCluster/Modular-Encounters-Systems'
+            echo 'All credits remain with the original developers of MES."'
+            echo '"changenote" ""'
+            echo '}'
+          } > "${{ runner.temp }}/vdf"
+
+          steamcmd +login "$STEAM_USERNAME" +workshop_build_item "${{ runner.temp }}/vdf" +quit || {
+            cat "$HOME/Steam/logs/workshop_log.txt"
+            false
+          }
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAMACCT }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+
+      - name: cleanup
+        run: rm -rf "$HOME/Steam"

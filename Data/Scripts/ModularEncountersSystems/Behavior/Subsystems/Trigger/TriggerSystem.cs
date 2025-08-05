@@ -38,9 +38,8 @@ namespace ModularEncountersSystems.Behavior.Subsystems.Trigger {
 		public List<string> ExistingTriggers;
 
 		public List<DialogueBank> _dialogueBanks;
-        public DialogueBank _dialogueBank;
 
-        public bool RemoteControlCompromised;
+		public bool RemoteControlCompromised;
 
 		public bool TimedTriggersProcessed;
 
@@ -74,8 +73,6 @@ namespace ModularEncountersSystems.Behavior.Subsystems.Trigger {
 			ExistingTriggers = new List<string>();
 
 			_dialogueBanks = new List<DialogueBank>();
-			_dialogueBank = new DialogueBank();
-
 			RemoteControlCompromised = false;
 
 			TimedTriggersProcessed = false;

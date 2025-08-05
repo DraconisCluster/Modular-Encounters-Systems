@@ -43,10 +43,6 @@ namespace ModularEncountersSystems.Helpers {
                 thoughtBubble += $" {AntennaThoughtBubblePercentage}%";
             }
 
-            if (string.IsNullOrWhiteSpace(thoughtBubble))
-                return cleaned;
-
-
             // Return with the new thought bubble
             return $"{cleaned} [{thoughtBubble}]";
         }

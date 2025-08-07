@@ -370,6 +370,8 @@
     <Compile Include="Data\Scripts\ModularEncountersSystems\BlockLogic\ReactorPrimingLogic.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\BlockLogic\ResearchTerminal.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\BlockLogic\ThrustSettings.cs" />
+    <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\SingleBlockThreat.cs" />
+    <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\BlockCategoryThreat.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\ConfigBase.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\ConfigBossEncounters.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\ConfigCombat.cs" />
@@ -386,11 +388,13 @@
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\ConfigSpaceCargoShips.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\ConfigThreat.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\EditorTools.cs" />
+    <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\GridTypeThreatMultiplier.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\IConfig.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\ISpawnType.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\PresetConfigs.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\SavedInternalData.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Configuration\Settings.cs" />
+    <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\ThreatDefinition.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Core\MES_SessionCore.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Create\Create.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\BlockEntity.cs" />
@@ -536,6 +540,7 @@
     <Compile Include="Data\Scripts\ModularEncountersSystems\Sync\SuitUpgradeTransaction.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Sync\SyncContainer.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Sync\SyncManager.cs" />
+    <Compile Include="Data\Scripts\ModularEncountersSystems\Tasks\AddBock.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Tasks\BehaviorRegister.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Tasks\ConsumableItemTimer.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Tasks\CutVoxels.cs" />
@@ -564,6 +569,7 @@
     <Compile Include="Data\Scripts\ModularEncountersSystems\Terminal\ProgramBlockControls.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Terminal\ShipyardControls.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Terminal\SuitModificationControls.cs" />
+    <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\ThreatEvaluator.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Watchers\CargoShipWatcher.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Watchers\Cleaning.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Watchers\EventWatcher.cs" />

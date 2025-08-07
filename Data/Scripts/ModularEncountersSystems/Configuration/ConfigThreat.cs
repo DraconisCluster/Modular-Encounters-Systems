@@ -1,15 +1,10 @@
-using ModularEncountersSystems.Configuration.Editor;
 using ModularEncountersSystems.Core;
 using ModularEncountersSystems.Logging;
 using Sandbox.ModAPI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using System.Xml.Serialization;
-using VRage.Game;
-using VRage.Serialization;
-using static ModularEncountersSystems.Configuration.ConfigThreat;
 
 namespace ModularEncountersSystems.Configuration {
 
@@ -17,76 +12,77 @@ namespace ModularEncountersSystems.Configuration {
 
     [XmlRoot("ThreatSettings")]
     public class ConfigThreat {
+    public string ModVersion { get; set; }
 
-          public string ModVersion { get; set; }
-
-    [XmlArray("BlockThreats")]
-    [XmlArrayItem("BlockType")]
-    public List<BlockThreatEntry> BlockThreatEntries;
+    [XmlArray("BlockThreat")]
+    [XmlArrayItem("Block")]
+    public List<SingleBlockThreat> SingleBlockThreatEntries;
 
     [XmlArray("CategoryThreat")]
     [XmlArrayItem("Category")]
-    public List<CategoryThreatEntry> CategoryThreatEntries;
+    public List<BlockCategoryThreat> BlockCategoryThreatEntries;
 
     [XmlIgnore]
-    public Dictionary<string, ThreatDefinition> BlockThreatDefinitions;
+    public Dictionary<string, ThreatDefinition> SingleBlockThreatDefinitions => SingleBlockThreatEntries
+                            .Where(e => !string.IsNullOrWhiteSpace(e.BlockType))
+                            .ToDictionary(e => e.BlockType, e => e.ToDefinition());
 
     [XmlIgnore]
-    public Dictionary<string, ThreatDefinition> CategoryThreatDefinitions;
-
-    [XmlElementAttribute("SizeMultipliers")]
-    public GridMultiplier SizeMultipliers;
-
-    [XmlElementAttribute("PowerMultipliers")]
-    public GridMultiplier PowerMultipliers;
-
-    public bool UsePowerMultipliers;
-    public bool UseSizeMultipliers;
-
-    public bool UseGridBoundingBoxThreatMultiplier;
-    public double BoundingBoxSizeMultiplier;
+    public Dictionary<string, ThreatDefinition> BlockCategoryThreatDefinitions => BlockCategoryThreatEntries
+                .Where(e => !string.IsNullOrWhiteSpace(e.Category))
+                .ToDictionary(e => e.Category, e => e.ToDefinition());
 
 
-    public bool UseThreatPerBlockMultiplier;
-    public double ThreatPerBlockMultiplier;
+    [XmlElementAttribute("GridTypeThreatMultipliers")]
+    public GridTypeThreatMultiplier GridTypeMultipliers;
 
-    [XmlIgnore]
-    public bool ConfigLoaded;
+    [XmlElementAttribute("PowerOutputMultipliers")]
+    public GridTypeThreatMultiplier GridPowerOutputMultipliers;
+
+    [XmlElementAttribute("BoundingBoxSizeMultipliers")]
+    public GridTypeThreatMultiplier BoundingBoxSizeMultipliers;
+
+    [XmlElementAttribute("ThreatPerBlockMultipliers")]
+    public GridTypeThreatMultiplier ThreatPerBlockMultipliers;
 
     [XmlIgnore]
+    public bool ConfigLoaded = false;
+
+        [XmlIgnore]
     public Dictionary<string, Func<string, object, bool>> EditorReference;
 
-        public ConfigThreat(){
+        public ConfigThreat()
+        {
 
             ModVersion = MES_SessionCore.ModVersion;
 
-            BlockThreatEntries = new List<BlockThreatEntry>();
-            CategoryThreatEntries = new List<CategoryThreatEntry>();
+            SingleBlockThreatEntries = new List<SingleBlockThreat>();
+            BlockCategoryThreatEntries = new List<BlockCategoryThreat>();
 
-            BlockThreatDefinitions = new Dictionary<string, ThreatDefinition>();
-            CategoryThreatDefinitions = new Dictionary<string, ThreatDefinition>();
+            GridTypeMultipliers = new GridTypeThreatMultiplier();
+            GridPowerOutputMultipliers = new GridTypeThreatMultiplier();
 
-            SizeMultipliers = new GridMultiplier();
-            PowerMultipliers = new GridMultiplier();
+            BoundingBoxSizeMultipliers = new GridTypeThreatMultiplier()
+            {
+                SmallGridMultiplier = 0.25f,
+                LargeGridMultiplier = 0.25f,
+                StationMultiplier = 0.25f
+            };
 
-            UsePowerMultipliers = true;
-            UseSizeMultipliers = true;
-            UseGridBoundingBoxThreatMultiplier = true;
-            UseThreatPerBlockMultiplier = true;
-            BoundingBoxSizeMultiplier = 0.25; // Original value.
-            ThreatPerBlockMultiplier = 0.01; // Original value equivalent.
+            ThreatPerBlockMultipliers = new GridTypeThreatMultiplier()
+            {
+                SmallGridMultiplier = 0.01f,
+                LargeGridMultiplier = 0.01f,
+                StationMultiplier = 0.01f
+            };
 
             ConfigLoaded = false;
 
+            EditorReference = new Dictionary<string, Func<string, object, bool>> 
+            {
 
-            EditorReference = new Dictionary<string, Func<string, object, bool>> {
-
-				{"UsePowerMultipliers", (s, o) => EditorTools.SetCommandValueBool(s, ref UsePowerMultipliers) },
-				{"UseSizeMultipliers", (s, o) => EditorTools.SetCommandValueBool(s, ref UseSizeMultipliers) },
-                {"UseGridBoundingBoxThreatMultiplier", (s, o) => EditorTools.SetCommandValueBool(s, ref UseGridBoundingBoxThreatMultiplier) },
-                {"UseThreatPerBlockMultiplier", (s, o) => EditorTools.SetCommandValueBool(s, ref UseThreatPerBlockMultiplier) },
-                {"BoundingBoxSizeMultiplier", (s, o) => EditorTools.SetCommandValueDouble(s, ref BoundingBoxSizeMultiplier) },
-                {"ThreatPerBlockMultiplier", (s, o) => EditorTools.SetCommandValueDouble(s, ref ThreatPerBlockMultiplier) }
+				
+                //{"ThreatPerBlockMultiplier", (s, o) => EditorTools.SetCommandValueDouble(s, ref ThreatPerBlockMultiplier) }
 
             };
 
@@ -106,32 +102,21 @@ namespace ModularEncountersSystems.Configuration {
                     if (xmlText != null)
                     {
                         config = MyAPIGateway.Utilities.SerializeFromXML<ConfigThreat>(xmlText);
-
-
-                        SpawnLogger.WriteToGameLog($"Deserialization: Config is {(config != null ? "not null" : "null")}", SpawnerDebugEnum.Threat, true);
-                        SpawnLogger.WriteToGameLog($"BlockThreatEntries count: {config?.BlockThreatEntries?.Count ?? -1}", SpawnerDebugEnum.Threat, true);
-                        SpawnLogger.WriteToGameLog($"CategoryThreatEntries count: {config?.CategoryThreatEntries?.Count ?? -1}", SpawnerDebugEnum.Threat, true);
-
-                        config.BlockThreatDefinitions = config.BlockThreatEntries
-                        .Where(e => !string.IsNullOrWhiteSpace(e.BlockName))
-                        .ToDictionary(e => e.BlockName, e => e.ToDefinition());
-
-                        config.CategoryThreatDefinitions = config.CategoryThreatEntries
-                            .Where(e => !string.IsNullOrWhiteSpace(e.CategoryName))
-                            .ToDictionary(e => e.CategoryName, e => e.ToDefinition());
-
-                        config.ConfigLoaded = true;
-                        SpawnLogger.Write("Loaded Existing Settings from Config-Threat.xml. Phase: " + phase, SpawnerDebugEnum.Startup, true);
-                        return config;
+                        if (config != null)
+                        {
+                            config.ConfigLoaded = true;
+                            SpawnLogger.Write("Loaded Existing Settings from Config-Threat.xml. Phase: " + phase, SpawnerDebugEnum.Startup, true);
+                            return config;
+                        }
                     }
                     else
                     {
-                        SpawnLogger.WriteToGameLog("ERROR loading Config-Threat.xml:Opening file returned null result. ", SpawnerDebugEnum.Startup, true);
+                        SpawnLogger.Write("ERROR loading Config-Threat.xml:Opening file returned null result. ", SpawnerDebugEnum.Startup, true);
                     }
                 }
                 catch (Exception exc)
                 {
-                    SpawnLogger.WriteToGameLog("ERROR loading Config-Threat.xml: " + exc, SpawnerDebugEnum.Error, true);
+                    SpawnLogger.Write("ERROR loading Config-Threat.xml: " + exc, SpawnerDebugEnum.Error, true);
                 }
             }
 
@@ -151,7 +136,7 @@ namespace ModularEncountersSystems.Configuration {
 
 
         public string SaveSettings()
-        {
+        {            
             try
             {
                 using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage("Config-Threat.xml", typeof(ConfigThreat)))
@@ -177,70 +162,5 @@ namespace ModularEncountersSystems.Configuration {
         
 
 
-    }
-
-    public class ThreatDefinition
-    {
-        public double Threat;
-        public double Multiplier;
-        public double PotentialVolume;
-    }
-    public class BlockThreatEntry
-    {
-        [XmlText]
-        public string BlockName;
-
-        [XmlAttribute("Threat")]
-        public double Threat = 0;
-
-        [XmlAttribute("Multiplier")]
-        public double Multiplier = 1.0;
-
-        [XmlAttribute("PotentialVolume")]
-        public double PotentialVolume = 1.0;
-
-        public ThreatDefinition ToDefinition()
-        {
-            return new ThreatDefinition
-            {
-                Threat = Threat,
-                Multiplier = Multiplier,
-                PotentialVolume = PotentialVolume
-            };
-        }
-    }
-
-
-    public class CategoryThreatEntry
-    {
-        [XmlText]
-        public string CategoryName;
-
-        [XmlAttribute("Threat")]
-        public double Threat = 0;
-
-        [XmlAttribute("Multiplier")]
-        public double Multiplier = 1.0;
-
-        [XmlAttribute("PotentialVolume")]
-        public double PotentialVolume = 1.0;
-
-        public ThreatDefinition ToDefinition()
-        {
-            return new ThreatDefinition
-            {
-                Threat = Threat,
-                Multiplier = Multiplier,
-                PotentialVolume = PotentialVolume
-            };
-        }
-    }
-
-   
-    public class GridMultiplier
-    {
-        public double SmallGridMultiplier = 0.5;
-        public double LargeGridMultiplier = 1.0;
-        public double StationMultiplier = 1.25;
     }
 }

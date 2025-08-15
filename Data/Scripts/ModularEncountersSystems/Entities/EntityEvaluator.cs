@@ -1,8 +1,9 @@
 ﻿
+
 using ModularEncountersSystems.API;
 using ModularEncountersSystems.Configuration;
 using ModularEncountersSystems.Helpers;
-
+using ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Util;
 using Sandbox.Definitions;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
@@ -678,8 +679,7 @@ namespace ModularEncountersSystems.Entities {
 
 			var timespan = MyAPIGateway.Session.GameDateTime - grid.LastThreatCalculationTime;
             ConfigThreat currentThreatSettings = Settings.Threat;
-			ThreatEvaluator evaluator = new ThreatEvaluator(grid);
-
+			ThreatEvaluator evaluator = new ThreatEvaluator(ThreatUtil.GridToThreatProfile(grid));
 			float score = evaluator.evaluate();
             grid.ThreatScore = score;
             grid.LastThreatCalculationTime = MyAPIGateway.Session.GameDateTime;

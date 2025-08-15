@@ -8,44 +8,17 @@ using System.Xml.Serialization;
 
 namespace ModularEncountersSystems.Configuration {
 
-    //General
+    public enum ThreatProfileIdentifierType
+    {
+        Planet,
+        Sector,
+        GridName
+    }
 
     [XmlRoot("ThreatSettings")]
-    public class ConfigThreat {
-    public string ModVersion { get; set; }
+    public class ConfigThreat : ModularEncountersSystems.Entities.Threat.ConfigThreatState {
 
-    [XmlArray("BlockThreat")]
-    [XmlArrayItem("Block")]
-    public List<SingleBlockThreat> SingleBlockThreatEntries;
-
-    [XmlArray("CategoryThreat")]
-    [XmlArrayItem("Category")]
-    public List<BlockCategoryThreat> BlockCategoryThreatEntries;
-
-    [XmlIgnore]
-    public Dictionary<string, ThreatDefinition> SingleBlockThreatDefinitions => SingleBlockThreatEntries
-                            .Where(e => !string.IsNullOrWhiteSpace(e.BlockType))
-                            .ToDictionary(e => e.BlockType, e => e.ToDefinition());
-
-    [XmlIgnore]
-    public Dictionary<string, ThreatDefinition> BlockCategoryThreatDefinitions => BlockCategoryThreatEntries
-                .Where(e => !string.IsNullOrWhiteSpace(e.Category))
-                .ToDictionary(e => e.Category, e => e.ToDefinition());
-
-
-    [XmlElementAttribute("GridTypeThreatMultipliers")]
-    public GridTypeThreatMultiplier GridTypeMultipliers;
-
-    [XmlElementAttribute("PowerOutputMultipliers")]
-    public GridTypeThreatMultiplier GridPowerOutputMultipliers;
-
-    [XmlElementAttribute("BoundingBoxSizeMultipliers")]
-    public GridTypeThreatMultiplier BoundingBoxSizeMultipliers;
-
-    [XmlElementAttribute("ThreatPerBlockMultipliers")]
-    public GridTypeThreatMultiplier ThreatPerBlockMultipliers;
-
-    [XmlIgnore]
+        [XmlIgnore]
     public bool ConfigLoaded = false;
 
         [XmlIgnore]
@@ -54,28 +27,7 @@ namespace ModularEncountersSystems.Configuration {
         public ConfigThreat()
         {
 
-            ModVersion = MES_SessionCore.ModVersion;
-
-            SingleBlockThreatEntries = new List<SingleBlockThreat>();
-            BlockCategoryThreatEntries = new List<BlockCategoryThreat>();
-
-            GridTypeMultipliers = new GridTypeThreatMultiplier();
-            GridPowerOutputMultipliers = new GridTypeThreatMultiplier();
-
-            BoundingBoxSizeMultipliers = new GridTypeThreatMultiplier()
-            {
-                SmallGridMultiplier = 0.25f,
-                LargeGridMultiplier = 0.25f,
-                StationMultiplier = 0.25f
-            };
-
-            ThreatPerBlockMultipliers = new GridTypeThreatMultiplier()
-            {
-                SmallGridMultiplier = 0.01f,
-                LargeGridMultiplier = 0.01f,
-                StationMultiplier = 0.01f
-            };
-
+            ThreatModVersion = MES_SessionCore.ModVersion;
             ConfigLoaded = false;
 
             EditorReference = new Dictionary<string, Func<string, object, bool>> 
@@ -98,7 +50,6 @@ namespace ModularEncountersSystems.Configuration {
                     var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage("Config-Threat.xml", typeof(ConfigThreat));
 
                     string xmlText = reader.ReadToEnd();
-
                     if (xmlText != null)
                     {
                         config = MyAPIGateway.Utilities.SerializeFromXML<ConfigThreat>(xmlText);
@@ -123,6 +74,7 @@ namespace ModularEncountersSystems.Configuration {
             var defaultSettings = new ConfigThreat();
             try
             {
+                SpawnLogger.Write("Writing default settings for Config-Threat.xml", SpawnerDebugEnum.Threat, true);
                 using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage("Config-Threat.xml", typeof(ConfigThreat)))
                     writer.Write(MyAPIGateway.Utilities.SerializeToXML(defaultSettings));
             }
@@ -136,7 +88,7 @@ namespace ModularEncountersSystems.Configuration {
 
 
         public string SaveSettings()
-        {            
+        {
             try
             {
                 using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage("Config-Threat.xml", typeof(ConfigThreat)))
@@ -159,8 +111,23 @@ namespace ModularEncountersSystems.Configuration {
             return SaveSettings();
         }
 
-        
 
+        public new ConfigThreat copy()
+        {
+            return new ConfigThreat()
+            {
+                ThreatModVersion = this.ThreatModVersion,
+                SingleBlockThreatEntries = this.SingleBlockThreatEntries,
+                BlockCategoryThreatEntries = this.BlockCategoryThreatEntries,
+                GridTypeMultipliers = this.GridTypeMultipliers,
+                GridPowerOutputMultipliers = this.GridPowerOutputMultipliers,
+                ConfigLoaded = this.ConfigLoaded,
+                BoundingBoxSizeMultipliers = this.BoundingBoxSizeMultipliers,
+                ThreatPerBlockMultipliers = this.ThreatPerBlockMultipliers,
+                ThreatProfiles = this.ThreatProfiles
+            };
+
+        }
 
     }
 }

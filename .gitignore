@@ -373,3 +373,4 @@ ModSDK/*
 obj/*
 ./bin/*
 bin/*
+*.sln

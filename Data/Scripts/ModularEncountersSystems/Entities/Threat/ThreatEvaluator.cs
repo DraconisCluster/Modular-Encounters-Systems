@@ -1,393 +1,366 @@
-﻿
-using ModularEncountersSystems.Configuration;
+﻿using ModularEncountersSystems.Configuration;
 using ModularEncountersSystems.Logging;
+using ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Core;
+using ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Profile;
+using ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using VRage.Game;
-using VRageMath;
+
 
 namespace ModularEncountersSystems.Entities { 
 
-    public class ThreatEvaluator
-    {
+    public class ThreatEvaluator  {
+
+        public static void Log(string m) => SpawnLogger.Write(m, SpawnerDebugEnum.Threat, true);
+        public static void Debug(string m) => SpawnLogger.Write(m, SpawnerDebugEnum.Threat, true);
+
+        public static TLogInterface Logger;
         private float DEFAULT_THREAT = 1.0f;
         private bool config_initialized = false;
-        private GridEntity _grid;
-        private ConfigThreat _currentThreatSettings;
-
         
-        public ThreatEvaluator(GridEntity grid) {
-            _grid = grid;
-            _currentThreatSettings = Settings.Threat;
-            if (_currentThreatSettings != null) config_initialized = true;
-        }
+        private bool test_mode = false;
+        private EntityThreatProfile GridThreatProfile;
+        private ConfigThreat CurrentThreatSettings;
 
+        public string ProfileName {
+            get
+            {
+                return GridThreatProfile.DisplayName ?? "No Name";
+            }
+        }
+        public ThreatEvaluator(EntityThreatProfile profile) 
+        { 
+            GridThreatProfile = profile;         
+            CurrentThreatSettings = ModularEncountersSystems.Configuration.Settings.Threat;
+            if (CurrentThreatSettings != null) config_initialized = true;        
+        }
         public float evaluate()
         {
-
-            if (!config_initialized) return DEFAULT_THREAT;
+            if (!config_initialized || CurrentThreatSettings == null)
+            {
+                Log($"Threat settings were not initialized and an evaluation could not complete for entity '{ProfileName}'.");
+                return DEFAULT_THREAT;
+            }                
+            
             float result = 0;
 
-            HashSet<long> evaluatedBlockIDs = new HashSet<long>();          
-            result += evaluateSingleBlocks(evaluatedBlockIDs);
-            result += evaluateBlockCategories(evaluatedBlockIDs);
-
-
-            var type = _grid.CubeGrid.GridSizeEnum;
-
-
-            if (_grid.CubeGrid.IsStatic)
+            if (GridThreatProfile == null)
             {
-                result += (float)(_grid.AllBlocks.Count * _currentThreatSettings.ThreatPerBlockMultipliers.StationMultiplier);
-
-                result += ((float)(Vector3D.Distance(_grid.CubeGrid.WorldAABB.Min, _grid.CubeGrid.WorldAABB.Max)
-               * _currentThreatSettings.BoundingBoxSizeMultipliers.StationMultiplier));
-
-                result *= (float)_currentThreatSettings.GridTypeMultipliers.StationMultiplier;
+                Log($"Threat settings profile passed in to evaluate entity '{ProfileName}' was empty.");
+                return DEFAULT_THREAT;
             }
+            
+          
+            HashSet<string> evaluatedBlockIDs = new HashSet<string>();          
+            result += EvaluateSingleBlocks(evaluatedBlockIDs);
+            result += EvaluateBlockCategories(evaluatedBlockIDs);
 
+            var typeMultipliers = CurrentThreatSettings.GridTypeMultipliers;
+            var total_Number_of_blocks = (float)(GridThreatProfile.Blocks.Sum((item) => item.Count));
+
+            var type = GridThreatProfile.GridType;
+            if (type.Equals("static", StringComparison.OrdinalIgnoreCase))
+            {
+                float threatWithPerBlock = result + (total_Number_of_blocks * CurrentThreatSettings.ThreatPerBlockMultipliers.StationMultiplier);
+                float threatFromPerBlock = threatWithPerBlock - result;
+
+                float threatWithBoundingBox = result + ((float)GridThreatProfile.GridScale * CurrentThreatSettings.BoundingBoxSizeMultipliers.StationMultiplier);
+                float threatFromBoundingBox = threatWithBoundingBox - result;
+
+                float runningTotal1 = result + threatFromPerBlock + threatFromBoundingBox;
+
+                float tMul = (float)CurrentThreatSettings.GridTypeMultipliers.StationMultiplier;
+                float threatWithTypeMultiplier = runningTotal1 * tMul;
+                float threatFromTypeMultiplier = threatWithTypeMultiplier - runningTotal1;
+
+                result = threatWithTypeMultiplier;
+                Debug($"[BLK] Grid type is {type}: Added {threatFromPerBlock} threat from the block count; Added {threatFromBoundingBox} from bounding box; Type Multiplier ({tMul}); From these: {result}");
+            }
+            else if (type.Equals("large", StringComparison.OrdinalIgnoreCase))
+            {
+                float threatWithPerBlock = result + (total_Number_of_blocks * CurrentThreatSettings.ThreatPerBlockMultipliers.LargeGridMultiplier);
+                float threatFromPerBlock = threatWithPerBlock - result;
+
+                float threatWithBoundingBox = result + ((float)GridThreatProfile.GridScale * CurrentThreatSettings.BoundingBoxSizeMultipliers.LargeGridMultiplier);
+                float threatFromBoundingBox = threatWithBoundingBox - result;
+
+                float runningTotal1 = result + threatFromPerBlock + threatFromBoundingBox;
+
+                float tMul = (float)CurrentThreatSettings.GridTypeMultipliers.LargeGridMultiplier;                
+                float threatWithTypeMultiplier = runningTotal1 * tMul;
+                float threatFromTypeMultiplier = threatWithTypeMultiplier - runningTotal1;
+
+                result = threatWithTypeMultiplier;
+                Debug($"[BLK] Grid type is {type}: Added {threatFromPerBlock} threat from the block count; Added {threatFromBoundingBox} from bounding box; Type multiplier {tMul} = {result}");
+            }
             else
             {
+                float threatWithPerBlock = result + (total_Number_of_blocks * CurrentThreatSettings.ThreatPerBlockMultipliers.SmallGridMultiplier);
+                float threatFromPerBlock = threatWithPerBlock - result;
 
+                float threatWithBoundingBox = result + ((float)GridThreatProfile.GridScale * CurrentThreatSettings.BoundingBoxSizeMultipliers.SmallGridMultiplier);
+                float threatFromBoundingBox = threatWithBoundingBox - result;
 
-                if (type == MyCubeSize.Large)
-                {
-                    result += (float)(_grid.AllBlocks.Count * _currentThreatSettings.ThreatPerBlockMultipliers.LargeGridMultiplier);
+                float runningTotal1 = result + threatFromPerBlock + threatFromBoundingBox;
 
-                    result += ((float)(Vector3D.Distance(_grid.CubeGrid.WorldAABB.Min, _grid.CubeGrid.WorldAABB.Max)
-                   * _currentThreatSettings.BoundingBoxSizeMultipliers.LargeGridMultiplier));
+                float tMul = (float)CurrentThreatSettings.GridTypeMultipliers.SmallGridMultiplier;
+                float threatWithTypeMultiplier = runningTotal1 * tMul;
+                float threatFromTypeMultiplier = threatWithTypeMultiplier - runningTotal1;
 
-                    result *= (float)_currentThreatSettings.GridTypeMultipliers.LargeGridMultiplier;
-                }
-                else
-                {
-                    result += (float)(_grid.AllBlocks.Count * _currentThreatSettings.ThreatPerBlockMultipliers.SmallGridMultiplier);
-
-                    result += ((float)(Vector3D.Distance(_grid.CubeGrid.WorldAABB.Min, _grid.CubeGrid.WorldAABB.Max)
-                   * _currentThreatSettings.BoundingBoxSizeMultipliers.SmallGridMultiplier));
-
-                    result *= (float)_currentThreatSettings.GridTypeMultipliers.SmallGridMultiplier;
-                }
-
+                result = threatWithTypeMultiplier;
+                Debug($"[BLK] Grid type is {type}: {threatFromPerBlock} threat from the block count; {threatFromBoundingBox} from bounding box; Type multiplier {tMul} = {result}");
             }
 
 
-            if (_grid.PowerOutput().Y > 0)
+            var powerNow = GridThreatProfile.Blocks.Sum((item) => item.TotalPowerOutput);
+            if (powerNow > 0)
             {
-                GridTypeThreatMultiplier multipliers =_currentThreatSettings.GridPowerOutputMultipliers;
-                float modifier = (float)(_grid.CubeGrid.IsStatic 
-                    ? (_grid.PowerOutput().Y * multipliers.StationMultiplier) 
-                    : (_grid.CubeGrid.GridSizeEnum == MyCubeSize.Large) 
-                        ? (_grid.PowerOutput().Y * multipliers.LargeGridMultiplier) 
-                        : (_grid.PowerOutput().Y * multipliers.SmallGridMultiplier));
+                GridTypeThreatMultiplier multipliers = CurrentThreatSettings.GridPowerOutputMultipliers;
+                float modifier = (float)(type == "Static" ? (powerNow * multipliers.StationMultiplier) : (type == "Large")? (powerNow * multipliers.LargeGridMultiplier) : (powerNow * multipliers.SmallGridMultiplier));
+                float res = powerNow * modifier;
+                Debug($"[BLK] Profile '{ProfileName}' has a total power output of {powerNow}. A modifier of {modifier} has been applied resulting in an additional {res} threat. ");
             }
-
+            Debug($"[BLK] Profile '{ProfileName}' has a total evaluated threat of {result}.");
             return result;
         }
 
-        private float evaluateBlockCategories(HashSet<long> evaluatedBlockIDs, bool filterEvaluatedIDs = true)
+        private float EvaluateBlockCategories(HashSet<string> evaluatedBlockIDs, bool filterEvaluatedIDs = true)
         {
-            if (!config_initialized)
+            if (!config_initialized || GridThreatProfile == null || CurrentThreatSettings == null)
             {
+                Log($"[CAT] Threat settings were not initialized and an evaluation could not complete for entity '{ProfileName}'.");
                 return DEFAULT_THREAT;
             }
-            float threatTotal = 0;
-            var blockCategoryThreat = _currentThreatSettings.BlockCategoryThreatEntries;
 
+            Debug($"Evaluating block category threat for entity '{ProfileName}'.");
+            var blockGroupSet = GridThreatProfile.Blocks;
+            if (blockGroupSet == null)
+            {
+                Debug($"[CAT] The threat profile for entity '{ProfileName}' did not contain any blocks.");
+                return DEFAULT_THREAT;
+            }
+            Debug($"[CAT] Evaluating {blockGroupSet.Count} blocks.");
+            float threatTotal = 0;
+            var blockCategoryThreat = CurrentThreatSettings.BlockCategoryThreatEntries;
+
+            if (CurrentThreatSettings.BlockCategoryThreatEntries == null)
+            {
+                Debug($"[CAT] Category settings for current threat configuration were null.");
+                return DEFAULT_THREAT;
+            }
             Dictionary<BlockCategoryThreat, List<float>> catSpecificThreats = new Dictionary<BlockCategoryThreat, List<float>>();
- 
             foreach (var catThreat in blockCategoryThreat)
             {
-                string name = catThreat.Category;
-                List<BlockEntity> blocks = new List<BlockEntity>();
+                string categoryName = catThreat.Category;
 
-               
-                BlockTypeEnum p;
-                if(Enum.TryParse(name, true, out p))
+                if (categoryName == null)
                 {
+                    Debug($"[CAT] Encountered a null category name assigned to block {catThreat.GetId()}...");
+                }
 
-                    if (_grid.BlockListReference.TryGetValue(p, out blocks))
+                var matchingBlocks = blockGroupSet.Where(b => !string.IsNullOrWhiteSpace(b.Category) && b.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase)).ToList();
+                
+                Debug($"[CAT] Matched {matchingBlocks.Count} blocks to category {categoryName}.");
+
+                foreach (var block in matchingBlocks)
+                    if (evaluatedBlockIDs.Contains(block.Id))
+                        Debug($"[CAT] {block.Id} has already been evaluated for profile {ProfileName} individually. Skipping consideration for category {block.Category}.");
+               
+                matchingBlocks.RemoveAll((b) => evaluatedBlockIDs.Contains(b.Id));
+
+                if (matchingBlocks.Count == 0)
+                {
+                    Debug($"[CAT] After filtering, there were no blocks left in category {catThreat.Category} for entity {ProfileName}. Continuing.");
+                    continue;
+                }
+                    
+
+                Debug($"[CAT] Evaluating {matchingBlocks.Count} types of block for profile '{ProfileName}'.");
+                foreach (var tracker in matchingBlocks)
+                {
+                    Debug($"[CAT] Evaluating {tracker.Id}");
+                    float addedScore = 0f;
+                    try
                     {
-
-                        if (blocks.Count == 0) continue;
-                        foreach (BlockEntity block in blocks.Where((block) => (filterEvaluatedIDs ? !evaluatedBlockIDs.Contains(block.GetEntityId()) : true)))
+                        // Inventory-based threat
+                        if (tracker.TotalMaxVolume > 0 && catThreat.FullVolumeThreat != 0)
                         {
-                            float addedScore = 0f;
-                            try
-                            {
-                                if (block.Block.HasInventory && catThreat.FullVolumeThreat != 0)
-                                {
-                                    float invMod = ((float)block.Block.GetInventory().CurrentVolume / (float)block.Block.GetInventory().MaxVolume) + 1;
-                                    if (!float.IsNaN(invMod))
-                                    {
-                                        addedScore += invMod * catThreat.FullVolumeThreat;
-                                    }
-                                }
-
-                                if (!catSpecificThreats.ContainsKey(catThreat))
-                                {
-                                    catSpecificThreats[catThreat] = new List<float>();
-                                }
-
-                                catSpecificThreats[catThreat].Add(addedScore + catThreat.Threat);
-                            }
-                            catch (KeyNotFoundException ex)
-                            {
-                                SpawnLogger.Write($"{name}: {BlockTypeEnum.Antennas.ToString()} : : {ex.Message}", SpawnerDebugEnum.Threat);
-                            }
-                            catch (Exception ex)
-                            {
-                                SpawnLogger.Write($"{name}: {BlockTypeEnum.Antennas.ToString()} : : {ex.Message}", SpawnerDebugEnum.Threat);
-                            }
+                            if (test_mode)
+                                tracker.TotalCurrentVolume = (float)(new Random().NextDouble() * (tracker.TotalMaxVolume * .75));
+                                addedScore += makeVolumeScore("CAT", catThreat.FullVolumeThreat, tracker);
                         }
+
+                        if (!catSpecificThreats.ContainsKey(catThreat))
+                            catSpecificThreats[catThreat] = new List<float>();
+
+                        float dbg_tracker = 0.0f;
+                        for (int i = 0; i < tracker.Count; i++)
+                        {
+                            var cur = catSpecificThreats[catThreat];
+                            var newThr = addedScore + catThreat.Threat;
+                            dbg_tracker += newThr;
+                            cur.Add(newThr);
+                        }
+                        Debug($"[CAT] Added {dbg_tracker} base threat to {ProfileName} from {tracker.Count} blocks with ID {ProfileName}.");
                     }
-                }    
+                    catch (Exception ex)
+                    {
+                        Log($"{categoryName}: {ex.Message}");
+                    }
+                }
             }
+                Debug($"[CAT] Scoring category based totals for {ProfileName}...");
 
             foreach (var t in catSpecificThreats)
             {
                 BlockCategoryThreat threatDef = t.Key;
                 List<float> threatDetected = t.Value;
+
                 if (threatDetected.Count == 0)
+                    continue;
+
+                    else if (threatDetected.Count == 1)
+                    {
+                        float res = threatDetected.FirstOrDefault();
+                        threatTotal += res;
+                        Debug($"[CAT] Category {t.Key} added {res} threat to profile '{ProfileName}'.");
+                    }
+                    else if (threatDetected.Count <= threatDef.MultiplierThreshold)
+                    {
+                        float res = threatDetected.Sum();
+                        threatTotal += res;
+                        Debug($"[CAT] Category {t.Key} added {res} threat to profile '{ProfileName}'.");
+                    }
+                    else
+                    {
+                        int totalLength = threatDetected.Count;
+                        int numberToPenalize = totalLength - threatDef.MultiplierThreshold;
+
+                        List<float> t1 = t.Value.Take(totalLength - numberToPenalize).ToList();
+                        List<float> t2 = t.Value.Skip(totalLength - numberToPenalize).ToList();   
+                        float runningScore = t1.Sum();
+                        float runningCum = t2[0];
+                        while (t2.Count > 0)
+                        {
+                            runningCum = (runningCum + t2[0]) * threatDef.Multiplier;
+                            t2.RemoveAt(0);
+                        }
+                        float res = (runningScore + runningCum);
+                        threatTotal += res;
+                        Debug($"[CAT] Category {t.Key} added {res} threat to profile '{ProfileName}'. {runningCum} of it was added from multiplier penalties.");
+                    }
+                }
+                return threatTotal;
+
+        }
+
+        private float makeVolumeScore(string src, float fullModifier, ProfileBlockTracker tracker)
+        {
+            float addedScore = 0f;
+            float invMod = (tracker.TotalCurrentVolume / (tracker.TotalMaxVolume + 1));
+            if (!float.IsNaN(invMod))
+            {
+                float scoreFromVolume = invMod * fullModifier;
+                Debug($"[{src}] Added {scoreFromVolume} threat to {ProfileName} from {(int)Math.Round(invMod * 100)} filled volume.");
+                addedScore += scoreFromVolume;
+            }
+            return addedScore;
+        }
+
+        private float EvaluateSingleBlocks(HashSet<string> evaluatedBlockIDs, bool filterEvaluatedIDs = true)
+        {
+            if (!config_initialized || GridThreatProfile == null)
+            {
+                Log($"Threat settings were not initialized and an evaluation could not complete for entity '{ProfileName}'.");
+                return DEFAULT_THREAT;
+            }
+            Debug($"[BLK] Evaluating block specific threat scores for profile '{ProfileName}'.");
+
+            float threatTotal = 0f;
+            var singleBlockThreats = CurrentThreatSettings.SingleBlockThreatEntries;
+
+            Debug($"[BLK] There are '{GridThreatProfile.Blocks.Count} block profiles in the threat profile for {ProfileName}'.");
+
+            var blockSpecificThreats = new Dictionary<SingleBlockThreat, List<float>>();
+            foreach (var blockTracker in GridThreatProfile.Blocks)
+            {
+                Debug($"[BLK] Evaluating block ID '{blockTracker.Id} for {ProfileName}'.");
+                if (blockTracker.Count <= 0)
+                    continue;
+
+                var matchingSingleBlockThreat = singleBlockThreats.FirstOrDefault((item) => item?.GetId() == blockTracker.Id);
+                if (matchingSingleBlockThreat == null)
                 {
+                    Debug($"[BLK] There are no matches for ID '{blockTracker.Id} in current threat settings.");
                     continue;
                 }
-                else if (threatDetected.Count == 1)
+                  
+
+                if (!blockSpecificThreats.ContainsKey(matchingSingleBlockThreat))
+                    blockSpecificThreats[matchingSingleBlockThreat] = new List<float>();
+
+                for (int i = 0; i < blockTracker.Count; i++)     
+                    blockSpecificThreats[matchingSingleBlockThreat].Add(matchingSingleBlockThreat.Threat);
+
+                
+
+                if (blockTracker.TotalMaxVolume > 0 && matchingSingleBlockThreat.FullVolumeThreat != 0)
                 {
-                    threatTotal += threatDetected.FirstOrDefault();
+                    threatTotal += makeVolumeScore("BLK", matchingSingleBlockThreat.FullVolumeThreat, blockTracker);   
+                }
+
+                evaluatedBlockIDs.Add(blockTracker.Id);
+            }
+
+            // Aggregate threat totals
+            foreach (var kvp in blockSpecificThreats)
+            {
+                var threatDef = kvp.Key;
+                var threatDetected = kvp.Value;
+
+                if (threatDetected.Count == 0)
+                    continue;
+
+
+
+                if (threatDetected.Count == 1)
+                {
+                    float res = threatDetected[0];
+                    threatTotal += res;
+                    Debug($"[BLK] Added {res} threat from block ID {threatDef.GetId()} to threat profile for {ProfileName}.");
                 }
                 else if (threatDetected.Count <= threatDef.MultiplierThreshold)
                 {
-                    threatTotal += threatDetected.Sum();
+                    float res = threatDetected.Sum();
+                    threatTotal += res;
+                    Debug($"[BLK] Added {res} threat from block ID {threatDef.GetId()} to threat profile for {ProfileName}.");
                 }
                 else
                 {
                     int totalLength = threatDetected.Count;
                     int numberToPenalize = totalLength - threatDef.MultiplierThreshold;
 
-                    List<float> normalScore = threatDetected.GetRange(0, threatDef.MultiplierThreshold);
-                    List<float> cumScore = threatDetected.GetRange(threatDef.MultiplierThreshold, numberToPenalize);
-
-                    float cumTotal = (float)(cumScore.FirstOrDefault() * threatDef.Multiplier);
-                    float runningTotal = normalScore.Sum();
-                    for (int i = 1; i < cumScore.Count; i++)
+                    List<float> t1 = kvp.Value.Take(totalLength - numberToPenalize).ToList();
+                    List<float> t2 = kvp.Value.Skip(totalLength - numberToPenalize).ToList();
+                    float runningScore = t1.Sum();
+                    float runningCum = t2[0];
+                    while (t2.Count > 0)
                     {
-                        cumTotal = (float)((cumTotal + cumScore[i]) * threatDef.Multiplier);
+                        runningCum = (runningCum + t2[0]) * threatDef.Multiplier;
+                        t2.Remove(0);
                     }
-                    threatTotal += (runningTotal + cumTotal);
+                    float res = runningScore + runningCum;
+                    Debug($"[BLK] Added {res} threat from block ID {threatDef.GetId()} to threat profile for {ProfileName}. {runningCum} of it was from penalty multipliers.");
+                    threatTotal += res;
                 }
             }
-            return threatTotal;
 
-        }
-
-        private float evaluateSingleBlocks(HashSet<long> evaluatedBlockIDs, bool filterEvaluatedIDs = true)
-        {
-            if (!config_initialized)
-            {
-                return DEFAULT_THREAT;
-            }
-            float threatTotal = 0;
-            var singleBlockThreat = _currentThreatSettings.SingleBlockThreatDefinitions;
-            
-            Dictionary<ThreatDefinition, List<float>> blockSpecificThreats = new Dictionary<ThreatDefinition, List<float>>();
-            List<BlockEntity> allBlocks = this._grid.AllTerminalBlocks
-                .Where( 
-                    (block) => (filterEvaluatedIDs ? !evaluatedBlockIDs.Contains(block.GetEntityId()) : true)).ToList();
-
-
-            foreach (var block in allBlocks)
-            {
-                if (block.IsClosed() || !block.Functional)
-                    continue;
-
-                var blockDefinition = block.Block.BlockDefinition;
-                string blockType = blockDefinition.TypeIdString;
-                string blockSubType = blockDefinition.SubtypeName;
-                string fullBlockType = blockDefinition.ToString();
-                ThreatDefinition threatDef = null;
-
-                bool isBlockSpecific = singleBlockThreat.TryGetValue(fullBlockType, out threatDef);
-
-                if (!isBlockSpecific)
-                    continue;              
-
-                evaluatedBlockIDs.Add(block.GetEntityId());
-                float addedThreat = (float)threatDef.Threat;
-
-                if (block.Block.HasInventory && threatDef.FullVolumeThreat != 0)
-                {
-                    float invMod = ((float)block.Block.GetInventory().CurrentVolume / (float)block.Block.GetInventory().MaxVolume) + 1;
-                    if (!float.IsNaN(invMod))
-                    {
-                        addedThreat += (float)(invMod * threatDef.FullVolumeThreat);
-                    }
-                }
-                blockSpecificThreats[threatDef].Add(addedThreat);
-            }
-
-            foreach (var t in blockSpecificThreats)
-            {
-                ThreatDefinition threatDef = t.Key;
-                List<float> threatDetected = t.Value;
-                if (threatDetected.Count == 0)
-                {
-                    continue;
-                }
-                else if (threatDetected.Count == 1)
-                {
-                    threatTotal += threatDetected.FirstOrDefault();
-                }
-                else if(threatDetected.Count <= threatDef.MultiplierThreshold)
-                {
-                    threatTotal += threatDetected.Sum();
-                }
-                else
-                {
-                    int totalLength = threatDetected.Count;
-                    int numberToPenalize = totalLength - threatDef.MultiplierThreshold;
-
-                    List<float> normalScore = threatDetected.GetRange(0, threatDef.MultiplierThreshold);
-                    List<float> cumScore = threatDetected.GetRange(threatDef.MultiplierThreshold, numberToPenalize);
-
-                    float cumTotal = (float)(cumScore.FirstOrDefault() * threatDef.Multiplier);
-                    float runningTotal = normalScore.Sum();
-                    for(int i = 1; i < cumScore.Count; i++) {
-                        cumTotal = (float)((cumTotal + cumScore[i]) * threatDef.Multiplier);
-                    }
-                    threatTotal += (runningTotal + cumTotal);
-                }
-            }
             return threatTotal;
         }
 
 
 
-        public static float GetTargetValueFromBlockList(List<BlockEntity> blockList, string categoryName, bool scanInventory = false)
-        {
-
-            float totalThreatResult = 0F;
-
-            // Current Threat Config
-            ConfigThreat currentThreatSettings = Settings.Threat;
-
-            // Used to track specific blocks within the block's 'category' assigned by MES            
-            Dictionary<string, List<float>> blockSpecificThreats = new Dictionary<string, List<float>>();
-
-            // Tally for the threat limited to non-specific 'category' based blocks
-            List<float> categoryThreats = new List<float>();
-
-            ThreatDefinition categoryThreatDef = null;
-
-            // Try to get a value for the category from the current threat definitions
-            currentThreatSettings.BlockCategoryThreatDefinitions.TryGetValue(categoryName, out categoryThreatDef);
-
-
-            foreach (var block in blockList)
-            {
-
-                // We don't count non-functional blocks here. They DO contribute to threat insofar as overall block count.
-                if (block.IsClosed() || !block.Functional)
-                    continue;
-
-                // First, try and get the block's subtype ID. If it doesn't have one, then use the blocks main type ID.
-                string blockType = String.IsNullOrEmpty(block.Block.BlockDefinition.SubtypeId)
-             ? block.Block.BlockDefinition.TypeIdString
-             : block.Block.BlockDefinition.SubtypeId;
-
-                ThreatDefinition threatDef = null;
-
-                // Before we consider category threat, let's try and get a more granular definition if it exists. Also, use it to set a flag for later.
-                bool isBlockSpecific = currentThreatSettings.SingleBlockThreatDefinitions.TryGetValue(blockType, out threatDef);
-
-                if (!isBlockSpecific)
-                    threatDef = categoryThreatDef;
-
-                // we didn't find ANY threat. Don't continue calculation.
-                if (threatDef == null)
-                    continue;
-
-
-                float value = (float)threatDef.Threat;
-                if (scanInventory
-                    && block.Block.HasInventory
-                    && block.Block.GetInventory().MaxVolume > 0)
-                {
-                    // This value will range from 0ish-1.0, representing how filled the container is in percentage.
-                    // 0.54 = 54% full. 
-
-                    float invMod = ((float)block.Block.GetInventory().CurrentVolume / (float)block.Block.GetInventory().MaxVolume) + 1;
-                    if (!float.IsNaN(invMod))
-                    {
-                        // We add an amount of threat based on how full the container is times the potential volume modifier
-                        value += (float)(invMod * threatDef.FullVolumeThreat);
-                    }
-                }
-
-                // Finally. If the threat is calculated based on a specific block type, then it goes into the dictionary.
-                // If not, then we are safe to add it to the category score
-
-                if (isBlockSpecific)
-                {
-
-                    if (!blockSpecificThreats.ContainsKey(blockType))
-                    {
-                        // Initialize a new list if it doesn't exist
-                        blockSpecificThreats[blockType] = new List<float>();
-                    }
-                    // And add the value for tallying later.
-                    blockSpecificThreats[blockType].Add(value);
-                }
-                else
-                {
-                    // Add the category threat to the list of threat values.
-                    categoryThreats.Add(value);
-                }
-            }
-
-            // Now, we tally things up and apply penalties.
-
-            // Apply a progressive penalty for category-level blocks
-            if (categoryThreatDef != null
-                && categoryThreats.Count > 0)
-            {
-                // Our penalty multiplier.
-                float multiplier = (float)categoryThreatDef.Multiplier;
-
-                // The running tally. Start with first element as the base value so we apply the penalty appropriately.
-                float compoundedThreat = categoryThreats[0];
-                for (int i = 1; i < categoryThreats.Count; i++)
-                {
-                    compoundedThreat = (compoundedThreat + categoryThreats[i]) * multiplier;
-                }
-
-                totalThreatResult += compoundedThreat;
-            }
-
-            // Apply progressive penalty to each specific block type
-            foreach (var kvp in blockSpecificThreats)
-            {
-                string blockType = kvp.Key;
-                List<float> threats = kvp.Value;
-
-                // We need to retrieve this again because we need the multiplier. Perhaps something to improve on.
-                ThreatDefinition threatD;
-                if (!currentThreatSettings.SingleBlockThreatDefinitions.TryGetValue(blockType, out threatD))
-                    continue;
-
-                float multiplier = (float)threatD.Multiplier;
-
-                float compoundedThreat = threats[0];
-                for (int i = 1; i < threats.Count; i++)
-                {
-                    compoundedThreat = (compoundedThreat + threats[i]) * multiplier;
-                }
-                totalThreatResult += compoundedThreat;
-            }
-
-            // And we are done. Threatening, yes?
-            return totalThreatResult;
-        }
+   
     }
 }

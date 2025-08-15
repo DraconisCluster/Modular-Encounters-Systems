@@ -409,7 +409,7 @@
     <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\SafeZoneManager.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\CategoryProvider\BlockCategoryProvider.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\CategoryProvider\MESCategoryProvider.cs" />
-    <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\ConfigThreatState.cs" />
+    <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\Config\ConfigThreatState.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\Core\BlockCategoryThreat.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\Core\GridTypeThreatMultiplier.cs" />
     <Compile Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\Core\SingleBlockThreat.cs" />
@@ -1014,7 +1014,6 @@
     <None Include="WebWiki\site\sitemap.xml.gz" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Data\Scripts\ModularEncountersSystems\Entities\Threat\Config\" />
     <Folder Include="Mod\Models\" />
     <Folder Include="Properties\" />
   </ItemGroup>

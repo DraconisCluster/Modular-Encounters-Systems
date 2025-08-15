@@ -32,8 +32,7 @@ namespace ModularEncountersSystems.Configuration {
 
             EditorReference = new Dictionary<string, Func<string, object, bool>> 
             {
-
-				
+	
                 //{"ThreatPerBlockMultiplier", (s, o) => EditorTools.SetCommandValueDouble(s, ref ThreatPerBlockMultiplier) }
 
             };

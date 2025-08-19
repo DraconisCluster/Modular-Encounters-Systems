@@ -348,7 +348,7 @@ namespace ModularEncountersSystems.Entities {
                     while (t2.Count > 0)
                     {
                         runningCum = (runningCum + t2[0]) * threatDef.Multiplier;
-                        t2.Remove(0);
+                        t2.RemoveAt(0);
                     }
                     float res = runningScore + runningCum;
                     Debug($"[BLK] Added {res} threat from block ID {threatDef.GetId()} to threat profile for {ProfileName}. {runningCum} of it was from penalty multipliers.");

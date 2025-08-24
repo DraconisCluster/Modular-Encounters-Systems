@@ -1,12 +1,11 @@
-using ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Core;
-using System.Collections.Generic;
+using ModularEncountersSystems.Entities.Threat;
 using System.Xml.Serialization;
 
 namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Profile
 {
 
     [XmlRoot("ConditionalThreatProfile")]
-    public class ConditionalThreatProfile
+    public class ConditionalThreatProfile : ThreatSettingsBase
     {
         public enum ThreatProfileIdentifierType
         {
@@ -34,25 +33,26 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
         [XmlAttribute("Value")]
         public string Value;
 
-        [XmlArray("BlockThreat")]
-        [XmlArrayItem("Block")]
-        public List<SingleBlockThreat> SingleBlockThreatEntries;
+        [XmlAttribute("Importance")]
+        public int Importance;
 
-        [XmlArray("CategoryThreat")]
-        [XmlArrayItem("Category")]
-        public List<BlockCategoryThreat> BlockCategoryThreatEntries;
-
-        [XmlElement("GridTypeThreatMultipliers")]
-        public GridTypeThreatMultiplier GridTypeMultipliers;
-
-        [XmlElement("PowerOutputMultipliers")]
-        public GridTypeThreatMultiplier GridPowerOutputMultipliers;
-
-        [XmlElement("BoundingBoxSizeMultipliers")]
-        public GridTypeThreatMultiplier BoundingBoxSizeMultipliers;
-
-        [XmlElement("ThreatPerBlockMultipliers")]
-        public GridTypeThreatMultiplier ThreatPerBlockMultipliers;
-
+        public new ConditionalThreatProfile copy()        
+        {
+            return new ConditionalThreatProfile
+            {
+                ThreatModVersion = this.ThreatModVersion,
+                SingleBlockThreatEntries = this.SingleBlockThreatEntries,
+                BlockCategoryThreatEntries = this.BlockCategoryThreatEntries,
+                GridTypeMultipliers = this.GridTypeMultipliers,
+                GridPowerOutputMultipliers = this.GridPowerOutputMultipliers,
+                BoundingBoxSizeMultipliers = this.BoundingBoxSizeMultipliers,
+                ThreatPerBlockMultipliers = this.ThreatPerBlockMultipliers,
+                Name = this.Name,
+                Identifier = this.Identifier,
+                Condition = this.Condition,
+                Value = this.Value    ,
+                Importance = this.Importance,
+            };
+        }
     }
 }

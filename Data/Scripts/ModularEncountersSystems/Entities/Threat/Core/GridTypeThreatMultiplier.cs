@@ -1,5 +1,3 @@
-using System.Xml.Serialization;
-
 namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Core
 {
     public class GridTypeThreatMultiplier

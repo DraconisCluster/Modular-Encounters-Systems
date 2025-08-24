@@ -19,6 +19,5 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
         public abstract override bool Equals(object obj);
         public abstract override int GetHashCode();
         public abstract bool Equals(ThreatDefinition other);
-        public abstract ThreatDefinition ToDefinition();
     }
 }

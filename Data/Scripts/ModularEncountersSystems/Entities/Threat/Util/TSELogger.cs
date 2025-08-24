@@ -1,4 +1,5 @@
-﻿using ModularEncountersSystems.Logging;
+﻿using ModularEncountersSystems.Configuration;
+using ModularEncountersSystems.Logging;
 using System;
 
 
@@ -6,19 +7,9 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
 {
     public class TSELogger : TLogInterface
     {
-        private TSELogger Default = new TSELogger();
-        private static bool debug = false;
-        public static bool SetDebug
-        {
-            get
-            {
-                return debug;
-            }
-            set
-            {
-                debug = value;
-            }
-        }
+        public static TSELogger Default = new TSELogger();
+        private static bool debug => Settings.Threat.DebugThreat;
+        
         public void Debug(string message)
         {
             if (!debug) return;
@@ -26,7 +17,8 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
         }
         public void Error(string message)
         {
-            SpawnLogger.Write(message, SpawnerDebugEnum.Threat, true);
+
+            SpawnLogger.Write(message, SpawnerDebugEnum.Error, true);
         }
 
         public void Info(string message)

@@ -163,7 +163,7 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
                     }
                     catch(NullReferenceException e)
                     {
-                        ThreatEvaluator.Debug($"[UTIL] Error trying to access block {_Type}/{_SubType} details! REF3" + e.Message);
+                        ThreatEvaluator.Debug($"[UTIL] Error trying to access block {_Type}/{_SubType} power/volume details! REF3" + e.Message);
                         banned.Add(_Id);
                         continue;
                     }
@@ -178,6 +178,7 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
                           
             }
         }
+
         public static EntityThreatProfile GridToThreatProfile(GridEntity g)
         {
             

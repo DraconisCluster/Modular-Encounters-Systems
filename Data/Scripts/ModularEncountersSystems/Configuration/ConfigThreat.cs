@@ -1,5 +1,8 @@
+using ModularEncountersSystems.Configuration.Editor;
 using ModularEncountersSystems.Core;
+using ModularEncountersSystems.Entities;
 using ModularEncountersSystems.Logging;
+using ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.Util;
 using Sandbox.ModAPI;
 using System;
 using System.Collections.Generic;
@@ -16,7 +19,11 @@ namespace ModularEncountersSystems.Configuration {
     }
 
     [XmlRoot("ThreatSettings")]
-    public class ConfigThreat : ModularEncountersSystems.Entities.Threat.ConfigThreatState {
+    public class ConfigThreat : ModularEncountersSystems.Entities.Threat.ThreatSettings {
+
+
+        [XmlAttribute]
+    public bool DebugThreat = false;
 
         [XmlIgnore]
     public bool ConfigLoaded = false;
@@ -26,15 +33,15 @@ namespace ModularEncountersSystems.Configuration {
 
         public ConfigThreat()
         {
-
+            ThreatEvaluator.Logger = TSELogger.Default;
             ThreatModVersion = MES_SessionCore.ModVersion;
             ConfigLoaded = false;
 
             EditorReference = new Dictionary<string, Func<string, object, bool>> 
-            {
-	
-                //{"ThreatPerBlockMultiplier", (s, o) => EditorTools.SetCommandValueDouble(s, ref ThreatPerBlockMultiplier) }
-
+            {	
+                {   
+                    "DebugThreat", (s, o) => EditorTools.SetCommandValueBool(s, ref DebugThreat)
+                }
             };
 
 		}

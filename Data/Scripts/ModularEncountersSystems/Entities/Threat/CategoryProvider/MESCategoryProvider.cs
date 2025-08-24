@@ -8,6 +8,7 @@ using VRage.Game.ModAPI;
 
 namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities.Threat.CategoryProvider
 {
+    // It's not MES's category provider, but it uses a lot of the logic from MES's category provider. We can expect nearly the same result per-block that MES would give.
     public class MESCategoryProvider : BlockCategoryProvider
     {
         public string Name
@@ -40,8 +41,7 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
                 IMyTerminalBlock terminalBlock = block.FatBlock as IMyTerminalBlock;
 
                 if (terminalBlock == null)
-                {
-       
+                {       
                     ThreatEvaluator.Debug("[CP] Block is not a terminal block: " + block.ToString());
                     return null;
                 }
@@ -95,8 +95,6 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
                     return "Turrets";
                 if (terminalBlock is IMyUserControllableGun)
                     return "Guns";
-
-                // Inhibitors
                 if (ArmorModuleReplacement.SmallModules.Contains(_Id) || ArmorModuleReplacement.LargeModules.Contains(_Id))
                     return "Inhibitors";
                 if (BlockManager.NanobotBlockIds.Contains(_Id))
@@ -104,7 +102,6 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
                 if (BlockManager.ShieldBlockIds.Contains(_Id))
                     return "Shields";
 
-                // No match → Other
                 return "Other";
             }
             catch (Exception e)

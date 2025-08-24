@@ -16,7 +16,6 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
 
         [XmlAttribute("FullVolumeThreat")]
         public float FullVolumeThreat { get; set; } = 0.0f;
-        public abstract override bool Equals(object obj);
         public abstract override int GetHashCode();
         public abstract bool Equals(ThreatDefinition other);
     }

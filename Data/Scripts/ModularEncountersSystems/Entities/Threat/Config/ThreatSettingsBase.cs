@@ -34,7 +34,7 @@ namespace ModularEncountersSystems.Entities.Threat
         [XmlArrayItem("Block")]
         public List<SingleBlockThreat> SingleBlockThreatEntries { get; set; }
             = new List<SingleBlockThreat>();
-        [XmlAttribute("ThreatModVersion")]
+        [XmlElement("ThreatModVersion")]
         public string ThreatModVersion { get; set; } = "1.0.0";
 
         [XmlElement("ThreatPerBlockMultiplier")]

@@ -22,7 +22,7 @@ namespace ModularEncountersSystems.Configuration {
     public class ConfigThreat : ModularEncountersSystems.Entities.Threat.ThreatSettings {
 
 
-        [XmlAttribute]
+        [XmlElement("DebugThreat")]
     public bool DebugThreat = false;
 
         [XmlIgnore]
@@ -130,7 +130,8 @@ namespace ModularEncountersSystems.Configuration {
                 ConfigLoaded = this.ConfigLoaded,
                 BoundingBoxSizeMultipliers = this.BoundingBoxSizeMultipliers,
                 ThreatPerBlockMultipliers = this.ThreatPerBlockMultipliers,
-                ThreatProfiles = this.ThreatProfiles
+                ThreatProfiles = this.ThreatProfiles,
+                DebugThreat = this.DebugThreat,
             };
 
         }

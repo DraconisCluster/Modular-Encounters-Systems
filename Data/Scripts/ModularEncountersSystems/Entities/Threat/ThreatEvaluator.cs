@@ -156,12 +156,9 @@ namespace ModularEncountersSystems.Entities {
                 string categoryName = catThreat.Category;
 
                 if (categoryName == null)
-                {
                     Logger.Warn($"[CAT] Encountered a null category name assigned to block {catThreat.GetId()}. Interesting...");
-                }
 
-                var matchingBlocks = blockGroupSet.Where(b => !string.IsNullOrWhiteSpace(b.Category) && b.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase)).ToList();
-                
+                var matchingBlocks = blockGroupSet.Where(b => !string.IsNullOrWhiteSpace(b.Category) && b.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase)).ToList();                
                 Debug($"[CAT] Matched {matchingBlocks.Count} blocks to category {categoryName}.");
 
                 foreach (var block in matchingBlocks)
@@ -189,7 +186,8 @@ namespace ModularEncountersSystems.Entities {
                         {
                             if (test_mode)
                                 tracker.TotalCurrentVolume = (float)(new Random().NextDouble() * (tracker.TotalMaxVolume * .75));
-                                addedScore += makeVolumeScore("CAT", catThreat.FullVolumeThreat, tracker);
+                            
+                            addedScore += makeVolumeScore("CAT", catThreat.FullVolumeThreat, tracker);
                         }
 
                         if (!catSpecificThreats.ContainsKey(catThreat))
@@ -225,13 +223,13 @@ namespace ModularEncountersSystems.Entities {
                     {
                         float res = threatDetected.FirstOrDefault();
                         threatTotal += res;
-                        Debug($"[CAT] Category {t.Key} added {res} threat to profile '{ProfileName}'.");
+                        Debug($"[CAT] {t.Key.Category} added {res} threat to profile '{ProfileName}'.");
                     }
                     else if (threatDetected.Count <= threatDef.MultiplierThreshold)
                     {
                         float res = threatDetected.Sum();
                         threatTotal += res;
-                        Debug($"[CAT] Category {t.Key} added {res} threat to profile '{ProfileName}'.");
+                        Debug($"[CAT] {t.Key.Category} added {res} threat to profile '{ProfileName}'.");
                     }
                     else
                     {
@@ -249,7 +247,7 @@ namespace ModularEncountersSystems.Entities {
                         }
                         float res = (runningScore + runningCum);
                         threatTotal += res;
-                        Debug($"[CAT] Category {t.Key} added {res} threat to profile '{ProfileName}'. {runningCum} of it was added from multiplier penalties.");
+                        Debug($"[CAT] Category {t.Key.Category} added {res} threat to profile '{ProfileName}'. {runningCum} of it was added from multiplier penalties.");
                     }
                 }
                 return threatTotal;
@@ -290,7 +288,7 @@ namespace ModularEncountersSystems.Entities {
                 if (blockTracker.Count <= 0)
                     continue;
 
-                var matchingSingleBlockThreat = singleBlockThreats.FirstOrDefault((item) => item?.GetId() == blockTracker.Id);
+                var matchingSingleBlockThreat = singleBlockThreats.FirstOrDefault((item) => item.GetId() == blockTracker.Id);
                 if (matchingSingleBlockThreat == null)
                 {
                     Debug($"[BLK] There are no matches for ID '{blockTracker.Id} in current threat settings.");

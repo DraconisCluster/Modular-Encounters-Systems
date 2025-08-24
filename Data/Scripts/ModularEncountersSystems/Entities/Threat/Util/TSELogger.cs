@@ -17,7 +17,6 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
         }
         public void Error(string message)
         {
-
             SpawnLogger.Write(message, SpawnerDebugEnum.Error, true);
         }
 

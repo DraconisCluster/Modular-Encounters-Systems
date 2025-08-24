@@ -81,103 +81,94 @@ namespace ModularEncounterSystems.Data.Scripts.ModularEncountersSystems.Entities
                 return;
             }
 
-            HashSet<MyDefinitionId> banned = new HashSet<MyDefinitionId>();
-            List<IMySlimBlock> evalList = new List<IMySlimBlock> ();
-            targetEntity.CubeGrid.GetBlocks(evalList);
-            foreach (var block in evalList)
+            HashSet<MyDefinitionId> banned = new HashSet<MyDefinitionId>();         
+            List<IMyCubeGrid> cubeGrids = new List<IMyCubeGrid> ();
+            IMyGridGroupData grp = targetEntity.CubeGrid.GetGridGroup(GridLinkTypeEnum.Physical);
+            grp.GetGrids(cubeGrids);
+
+            ThreatEvaluator.Debug($"[UTIL] Evaluating grid group with ({cubeGrids.Count}) grids for '{targetEntity.GridName}'. ");
+            foreach (IMyCubeGrid grid in cubeGrids)
             {
-
-                if ( block == null )
+                List<IMySlimBlock> evalList = new List<IMySlimBlock>();
+                grid.GetBlocks(evalList);
+                foreach (var block in evalList)
                 {
-                    ThreatEvaluator.Debug($"[UTIL] Encountered a null block provided by grid '{targetEntity.GridName}'. ");
-                    continue;
-                }
-
-                if (block.BlockDefinition == null)
-                {
-                    ThreatEvaluator.Debug($"[UTIL] Encountered a block that did not have a definition in grid '{targetEntity.GridName}'. ");
-                    continue;
-                }
-
-                if (block.BlockDefinition.Id == null)
-                {
-                    ThreatEvaluator.Debug($"[UTIL] Encountered a block that did not have a definition Id in grid '{targetEntity.GridName}'. ");
-                    continue;
-                }
-
-                if (banned.Contains(block.BlockDefinition.Id))
-                    continue;
-
-                var _Id = block.BlockDefinition.Id;
-                var _Type = ExtractBlockType(_Id.TypeId.IsNull ? "" : _Id.TypeId.ToString());
-                var _SubType = _Id.SubtypeName ?? "";
-
-                if (_Type == "" && _SubType == "")
-                {
-                    ThreatEvaluator.Debug($"[UTIL] Encountered a block whose type and subtype were empty: '{targetEntity.GridName}'. ");
-                    banned.Add(_Id);
-                    continue;
-                }
-
-                var key = new blockId(){ Type = _Type,SubType = _SubType};              
-                try
-                {
-                    var category = categoryProvider.GetCategory(block);
-
-                    if ( category == null)
+                    if ((block?.BlockDefinition?.Id == null))
                     {
-                        ThreatEvaluator.Debug($"[UTIL] Couldn't find the right category for: '{key.ToString()}'. Skipping it's evaluation. ");
+                        ThreatEvaluator.Debug($"[UTIL] Encountered a block with a null definition or definition ID provided by grid '{targetEntity.GridName}'. ");
+                        continue;
+                    }
+
+                    if (banned.Contains(block.BlockDefinition.Id))
+                        continue;
+
+                    var _Id = block.BlockDefinition.Id;
+                    var _Type = ExtractBlockType(_Id.TypeId.IsNull ? "" : _Id.TypeId.ToString());
+                    var _SubType = _Id.SubtypeName ?? "";
+
+                    if (_Type == "" && _SubType == "")
+                    {
+                        ThreatEvaluator.Debug($"[UTIL] Encountered a block whose type and subtype were empty: '{targetEntity.GridName}'. ");
                         banned.Add(_Id);
                         continue;
                     }
-                    ThreatEvaluator.Debug($"[UTIL] Assigned category {category} to: '{key.ToString()}'. ");
-                    if (!output.ContainsKey(key) || output[key] == null)
-                    {
-                        ThreatEvaluator.Debug($"[UTIL] Adding new block profile for {key.ToString()}! ");
-                        output.Add(key, new ProfileBlockTracker()
-                        {
-                            Category = category,
-                            Type = _Type,
-                            SubType = _SubType,
-                            Count = 1
-                        });
-                    }
-                    else
-                    {
-                        output[key].Count += 1;
-                    }
 
+                    var key = new blockId() { Type = _Type, SubType = _SubType };
                     try
                     {
-                        if (block as IMyPowerProducer != null)
+                        var category = categoryProvider.GetCategory(block);
+
+                        if (category == null)
                         {
-                            output[key].TotalPowerOutput += (block as IMyPowerProducer).CurrentOutput;
-                            output[key].TotalPowerOutput += (block as IMyPowerProducer).MaxOutput;
+                            ThreatEvaluator.Debug($"[UTIL] Couldn't find the right category for: '{key.ToString()}'. Skipping it's evaluation. ");
+                            banned.Add(_Id);
+                            continue;
                         }
-                        if (block as IMyCargoContainer != null || block as IMyInventory != null)
+                      
+                        if (!output.ContainsKey(key) || output[key] == null)
                         {
-                            var iv = block as IMyInventory;
-                            output[key].TotalCurrentVolume += ((float)iv.CurrentVolume);
-                            output[key].TotalMaxVolume += ((float)iv.MaxVolume);
+                            ThreatEvaluator.Debug($"[UTIL] Assigned category {category} to: '{key.ToString()}'. ");
+                            output.Add(key, new ProfileBlockTracker() { Category = category, Type = _Type, SubType = _SubType, Count = 1});
                         }
+                        else
+                        {
+                            output[key].Count += 1;
+                        }
+
+                        try
+                        {
+                            if (block as IMyPowerProducer != null)
+                            {
+                                output[key].TotalPowerOutput += (block as IMyPowerProducer).CurrentOutput;
+                                output[key].TotalPowerOutput += (block as IMyPowerProducer).MaxOutput;
+                            }
+                            if (block as IMyCargoContainer != null || block as IMyInventory != null)
+                            {
+                                var iv = block as IMyInventory;
+                                output[key].TotalCurrentVolume += ((float)iv.CurrentVolume);
+                                output[key].TotalMaxVolume += ((float)iv.MaxVolume);
+                            }
+                        }
+                        catch (NullReferenceException e)
+                        {
+                            ThreatEvaluator.Debug($"[UTIL] Error trying to access block {_Type}/{_SubType} power/volume details! REF3" + e.Message);
+                            banned.Add(_Id);
+                            continue;
+                        }
+
                     }
-                    catch(NullReferenceException e)
+                    catch (NullReferenceException e)
                     {
-                        ThreatEvaluator.Debug($"[UTIL] Error trying to access block {_Type}/{_SubType} power/volume details! REF3" + e.Message);
+                        ThreatEvaluator.Debug($"[UTIL] Error trying to process category or details of block! REF2" + e.Message);
                         banned.Add(_Id);
                         continue;
                     }
 
                 }
-                catch(NullReferenceException e)
-                {
-                    ThreatEvaluator.Debug($"[UTIL] Error trying to process category or details of block! REF2" + e.Message);
-                    banned.Add(_Id);
-                    continue;
-                }
-                          
             }
+           
         }
+
 
         public static EntityThreatProfile GridToThreatProfile(GridEntity g)
         {
